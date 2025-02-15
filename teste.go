@@ -6,13 +6,14 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"runtime"
 
 	"github.com/dustin/go-humanize"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
-	"github.com/shirou/gopsutil/net"
+	psnet "github.com/shirou/gopsutil/net" // Usando um alias para o pacote gopsutil/net
 )
 
 func main() {
@@ -52,19 +53,19 @@ func printSystemInfo() {
 		fmt.Println("Erro ao obter informações de rede")
 	} else {
 		for _, iface := range ifaces {
-			// Obtenha a interface de rede real do pacote 'net'
-			netIface, err := net.InterfaceByName(iface.Name)
+			// Obtenha os endereços da interface
+			addrs, err := iface.Addrs()
 			if err != nil {
-				log.Printf("Erro ao obter informações para a interface %s: %v\n", iface.Name, err)
-				continue
+				log.Printf("Erro ao obter endereços para a interface %s: %v\n", iface.Name, err)
+				continue // Se não conseguir obter os endereços, pula para a próxima interface
 			}
 
 			// Verifique se a interface está ativa usando o método Up()
-			isUp := (netIface.Flags & net.FlagUp) != 0
+			isUp := iface.Flags&net.FlagUp == net.FlagUp
 
 			var addrString string
-			if len(iface.Addrs) > 0 {
-				addrString = iface.Addrs[0].Addr
+			if len(addrs) > 0 {
+				addrString = addrs[0].String() // Use o método String() para obter o endereço como string
 			} else {
 				addrString = "No address"
 			}
@@ -129,7 +130,7 @@ func printNetInfo() {
 	fmt.Println("\n--- Informações de Rede ---")
 
 	// Get connection information
-	cons, err := net.Connections("tcp")
+	cons, err := psnet.Connections("tcp") // Usando o alias psnet para o pacote gopsutil/net
 	if err != nil {
 		log.Println("Erro ao obter conexões de rede:", err)
 		fmt.Println("Erro ao obter conexões de rede")
