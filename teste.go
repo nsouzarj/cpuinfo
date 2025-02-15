@@ -31,18 +31,20 @@ func printSystemInfo() {
 	fmt.Println("\n--- Informações Gerais do Sistema ---")
 
 	// Informações do disco
-	disks, err := disk.Partitions(true) // set `all` to true to include all partitions.
+	disks, err := disk.Partitions(true) // Obtém todas as partições do disco
 	if err != nil {
 		log.Println("Erro ao obter partições do disco:", err)
 		fmt.Println("Erro ao obter informações do disco")
 	} else {
-		for _, disk := range disks {
-			usage, err := disk.Usage(disk.Mountpoint)
+		for _, d := range disks {
+			usage, err := disk.Usage(d.Mountpoint) // Obtém o uso do disco para o ponto de montagem
 			if err != nil {
-				log.Printf("Erro ao obter uso para %s: %v", disk.Mountpoint, err)
-				continue // Skip this disk if we can't get its usage.
+				log.Printf("Erro ao obter uso para %s: %v", d.Mountpoint, err)
+				continue // Pula para a próxima partição em caso de erro
 			}
-			fmt.Printf("Disco: %s - %s - %s - Total: %s - Livre: %s\n", disk.Device, disk.Mountpoint, disk.Fstype, humanize.Bytes(usage.Total), humanize.Bytes(usage.Free))
+			fmt.Printf("Disco: %s - %s - %s - Total: %s - Livre: %s\n",
+				d.Device, d.Mountpoint, d.Fstype,
+				humanize.Bytes(usage.Total), humanize.Bytes(usage.Free))
 		}
 	}
 
@@ -53,19 +55,19 @@ func printSystemInfo() {
 		fmt.Println("Erro ao obter informações de rede")
 	} else {
 		for _, iface := range ifaces {
-			// Obtenha os endereços da interface
+			// Obtém os endereços da interface
 			addrs, err := iface.Addrs()
 			if err != nil {
 				log.Printf("Erro ao obter endereços para a interface %s: %v\n", iface.Name, err)
-				continue // Se não conseguir obter os endereços, pula para a próxima interface
+				continue // Pula para a próxima interface em caso de erro
 			}
 
-			// Verifique se a interface está ativa usando o método Up()
+			// Verifica se a interface está ativa
 			isUp := iface.Flags&net.FlagUp == net.FlagUp
 
 			var addrString string
 			if len(addrs) > 0 {
-				addrString = addrs[0].String() // Use o método String() para obter o endereço como string
+				addrString = addrs[0].String() // Obtém o primeiro endereço da interface
 			} else {
 				addrString = "No address"
 			}
@@ -100,51 +102,48 @@ func printSystemInfo() {
 func printOtherInfo() {
 	fmt.Println("\n--- Outras Informações do Sistema ---")
 
+	// Informações detalhadas da CPU
 	cpuinfo, err := cpu.Info()
 	if err != nil {
 		log.Println("Erro ao obter informações da CPU:", err)
 		fmt.Println("Erro ao obter informações da CPU")
 	} else {
 		if len(cpuinfo) > 0 {
-			fmt.Printf("Fabricante: - %s\n", cpuinfo[0].VendorID)
-			fmt.Printf("Modelo: - %s\n", cpuinfo[0].Model)
-			fmt.Printf("Mhz: - %.2f\n", cpuinfo[0].Mhz)
-			fmt.Printf("Quant Cores: - %d\n", cpuinfo[0].Cores)
-			fmt.Printf("Familia: - %s\n", cpuinfo[0].Family)
-			fmt.Printf("Micro Code: - %s\n", cpuinfo[0].Microcode)
-			fmt.Printf("Nome do Modelo: - %s\n", cpuinfo[0].ModelName)
+			fmt.Printf("Fabricante: %s\n", cpuinfo[0].VendorID)
+			fmt.Printf("Modelo: %s\n", cpuinfo[0].ModelName)
+			fmt.Printf("Mhz: %.2f\n", cpuinfo[0].Mhz)
+			fmt.Printf("Quant Cores: %d\n", cpuinfo[0].Cores)
+			fmt.Printf("Familia: %s\n", cpuinfo[0].Family)
+			fmt.Printf("Micro Code: %s\n", cpuinfo[0].Microcode)
 		} else {
 			fmt.Println("Nenhuma informação da CPU disponível")
 		}
 	}
 
-	// Add OS information
-	fmt.Printf("OS: - %s\n", runtime.GOOS)
-	fmt.Printf("Architecture: - %s\n", runtime.GOARCH)
-	fmt.Printf("Go Version: - %s\n", runtime.Version())
-	fmt.Printf("Number of CPUs: - %d\n", runtime.NumCPU())
-	fmt.Printf("Number of Goroutines: - %d\n", runtime.NumGoroutine())
+	// Informações do sistema operacional
+	fmt.Printf("OS: %s\n", runtime.GOOS)
+	fmt.Printf("Architecture: %s\n", runtime.GOARCH)
+	fmt.Printf("Go Version: %s\n", runtime.Version())
+	fmt.Printf("Number of CPUs: %d\n", runtime.NumCPU())
+	fmt.Printf("Number of Goroutines: %d\n", runtime.NumGoroutine())
 }
 
 func printNetInfo() {
 	fmt.Println("\n--- Informações de Rede ---")
 
-	// Get connection information
+	// Obtém informações sobre conexões de rede
 	cons, err := psnet.Connections("tcp") // Usando o alias psnet para o pacote gopsutil/net
 	if err != nil {
 		log.Println("Erro ao obter conexões de rede:", err)
 		fmt.Println("Erro ao obter conexões de rede")
 	} else {
 		for _, con := range cons {
-			// Skip connections with empty addresses.  This can happen.
+			// Ignora conexões com endereços IP vazios
 			if con.Laddr.IP == "" || con.Raddr.IP == "" {
 				continue
 			}
-			localAddr := con.Laddr.IP
-			remoteAddr := con.Raddr.IP
-			port := con.Laddr.Port
-			fmt.Printf("Endereço Local: %s, Endereço Remoto: %s  Porta: %d, Status: %s\n",
-				localAddr, remoteAddr, port, con.Status)
+			fmt.Printf("Endereço Local: %s, Endereço Remoto: %s, Porta: %d, Status: %s\n",
+				con.Laddr.IP, con.Raddr.IP, con.Laddr.Port, con.Status)
 		}
 	}
 }
