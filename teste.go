@@ -1,7 +1,12 @@
+//go:build windows
+// +build windows
+
 package main
 
 import (
 	"fmt"
+	"log"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -40,29 +45,48 @@ func createSystemInfoTab() fyne.CanvasObject {
 	box := container.NewVBox()
 
 	// Get disk information
-	disks, _ := disk.Partitions(false)
-	for _, disk := range disks {
-		box.Add(widget.NewLabel(fmt.Sprintf("Disco: %s - %s - %s", disk.Device, disk.Mountpoint,disk.Fstype )))
+	disks, err := disk.Partitions(false)
+	if err != nil {
+		log.Println("Error getting disk partitions:", err)
+		box.Add(widget.NewLabel("Error getting disk information"))
+	} else {
+		for _, disk := range disks {
+			box.Add(widget.NewLabel(fmt.Sprintf("Disco: %s - %s - %s", disk.Device, disk.Mountpoint, disk.Fstype)))
+		}
 	}
 
 	// Get network information
-	ifaces, _ := net.Interfaces()
-
-	for _, iface := range ifaces {
-		if len(iface.Addrs) > 0 {
-			box.Add(widget.NewLabel(fmt.Sprintf("Interface: %s - %s", iface.Name, iface.Addrs[0].Addr)))
-		} else {
-			box.Add(widget.NewLabel(fmt.Sprintf("Interface: %s - no addresses", iface.Name)))
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		log.Println("Error getting network interfaces:", err)
+		box.Add(widget.NewLabel("Error getting network information"))
+	} else {
+		for _, iface := range ifaces {
+			if len(iface.Addrs) > 0 {
+				box.Add(widget.NewLabel(fmt.Sprintf("Interface: %s - %s", iface.Name, iface.Addrs[0].Addr)))
+			} else {
+				box.Add(widget.NewLabel(fmt.Sprintf("Interface: %s - no addresses", iface.Name)))
+			}
 		}
 	}
 
 	// Get memory information
-	mem, _ := mem.VirtualMemory()
-	box.Add(widget.NewLabel(fmt.Sprintf("Memória: %s", humanize.Bytes(uint64(mem.Total)))))
+	memInfo, err := mem.VirtualMemory()
+	if err != nil {
+		log.Println("Error getting memory information:", err)
+		box.Add(widget.NewLabel("Error getting memory information"))
+	} else {
+		box.Add(widget.NewLabel(fmt.Sprintf("Memória: %s", humanize.Bytes(uint64(memInfo.Total)))))
+	}
 
 	// Get CPU information
-	percentualDeUso, _ := cpu.Percent(0, false)
-	box.Add(widget.NewLabel(fmt.Sprintf("CPU: %.2f%%", percentualDeUso[0])))
+	percentualDeUso, err := cpu.Percent(0, false)
+	if err != nil {
+		log.Println("Error getting CPU usage:", err)
+		box.Add(widget.NewLabel("Error getting CPU usage"))
+	} else {
+		box.Add(widget.NewLabel(fmt.Sprintf("CPU: %.2f%%", percentualDeUso[0])))
+	}
 
 	// Create a scrollable container
 	scroll := container.NewScroll(box)
@@ -75,15 +99,23 @@ func createOtherInfoTab() fyne.CanvasObject {
 	box := container.NewVBox()
 
 	// Add other info widgets here
-	cpuinfo, _ := cpu.Info()
-
-	box.Add(widget.NewLabel(fmt.Sprintf("Fabricante: - %s", cpuinfo[0].VendorID)))
-	box.Add(widget.NewLabel(fmt.Sprintf("Modelo - %s", cpuinfo[0].Model)))
-	box.Add(widget.NewLabel(fmt.Sprintf("Modelo: - %2f", cpuinfo[0].Mhz)))
-	box.Add(widget.NewLabel(fmt.Sprintf("Quant Cores: - %2d", cpuinfo[0].Cores)))
-	box.Add(widget.NewLabel(fmt.Sprintf("Familia: - %s", cpuinfo[0].Family)))
-	box.Add(widget.NewLabel(fmt.Sprintf("Micro Code: - %s ", cpuinfo[0].Microcode)))
-	box.Add(widget.NewLabel(fmt.Sprintf("Nome do Modelo: - %s", cpuinfo[0].ModelName)))
+	cpuinfo, err := cpu.Info()
+	if err != nil {
+		log.Println("Error getting CPU information:", err)
+		box.Add(widget.NewLabel("Error getting CPU information"))
+	} else {
+		if len(cpuinfo) > 0 {
+			box.Add(widget.NewLabel(fmt.Sprintf("Fabricante: - %s", cpuinfo[0].VendorID)))
+			box.Add(widget.NewLabel(fmt.Sprintf("Modelo - %s", cpuinfo[0].Model)))
+			box.Add(widget.NewLabel(fmt.Sprintf("Mhz: - %.2f", cpuinfo[0].Mhz)))
+			box.Add(widget.NewLabel(fmt.Sprintf("Quant Cores: - %d", cpuinfo[0].Cores)))
+			box.Add(widget.NewLabel(fmt.Sprintf("Familia: - %s", cpuinfo[0].Family)))
+			box.Add(widget.NewLabel(fmt.Sprintf("Micro Code: - %s ", cpuinfo[0].Microcode)))
+			box.Add(widget.NewLabel(fmt.Sprintf("Nome do Modelo: - %s", cpuinfo[0].ModelName)))
+		} else {
+			box.Add(widget.NewLabel("No CPU information available"))
+		}
+	}
 
 	// Create a scrollable container
 	scroll := container.NewScroll(box)
@@ -96,20 +128,22 @@ func createNetInfoTab() fyne.CanvasObject {
 	box := container.NewVBox()
 
 	// Get connection information
-	cons, _ := net.Connections("tcp")
-	for _, con := range cons {
-		localAddr := con.Laddr.IP
-		port := con.Laddr.Port
-		remoteAddr := con.Raddr.IP
-		box.Add(widget.NewLabel(fmt.Sprintf("Endereço Local: %s, Endereço Remoto: %s  Porta: %2d",
-			localAddr, remoteAddr, port)))
+	cons, err := net.Connections("tcp")
+	if err != nil {
+		log.Println("Error getting network connections:", err)
+		box.Add(widget.NewLabel("Error getting network connections"))
+	} else {
+		for _, con := range cons {
+			localAddr := con.Laddr.IP
+			remoteAddr := con.Raddr.IP
+			port := con.Laddr.Port
+			box.Add(widget.NewLabel(fmt.Sprintf("Endereço Local: %s, Endereço Remoto: %s  Porta: %d",
+				localAddr, remoteAddr, port)))
+		}
 	}
 
-
-
-   	// Create a scrollable container
+	// Create a scrollable container
 	scroll := container.NewScroll(box)
 
 	return scroll
-
 }
